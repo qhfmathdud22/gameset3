@@ -148,14 +148,17 @@ void UDeliveryNotifBannerWidget::BuildLayout()
 	}
 	TextVBox->AddChild(HintText);
 
-	// ── 캔버스에 배너 버튼 배치 (화면 상단 중앙 고정) ──────────────────
+	// ── 캔버스에 배너 버튼 배치 (우하단 폰 위젯 위에 고정) ─────────────
+	// 폰 위젯이 우하단에 있으므로 배너도 같은 위치 근처에 표시해
+	// "알림이 폰에 들어오는" 느낌을 준다.
 	UCanvasPanelSlot* BtnSlot = Cast<UCanvasPanelSlot>(Canvas->AddChild(BannerButton));
 	if (BtnSlot)
 	{
-		BtnSlot->SetAnchors(FAnchors(0.5f, 0.f, 0.5f, 0.f)); // 상단 중앙 앵커
-		BtnSlot->SetAlignment(FVector2D(0.5f, 0.f));          // 가로 중앙 정렬
-		BtnSlot->SetPosition(FVector2D(0.f, 20.f));           // 상단에서 20px 아래
-		BtnSlot->SetSize(FVector2D(360.f, 90.f));             // 배너 크기
+		BtnSlot->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f)); // 우하단 앵커
+		BtnSlot->SetAlignment(FVector2D(1.f, 1.f));         // 우하단 기준 정렬
+		// 폰 위젯 높이만큼 위로 올림 (폰이 약 420px 높이라 가정, -440 = 폰 위)
+		BtnSlot->SetPosition(FVector2D(-10.f, -440.f));
+		BtnSlot->SetSize(FVector2D(280.f, 80.f));           // 폰 너비에 맞춘 크기
 		BtnSlot->SetZOrder(0);
 	}
 }
@@ -198,7 +201,7 @@ void UDeliveryNotifBannerWidget::ShowBanner(const FText& Description,
 		World->GetTimerManager().SetTimer(
 			AutoHideTimer,
 			this, &UDeliveryNotifBannerWidget::HideBanner,
-			5.f,
+			10.f,
 			false
 		);
 	}

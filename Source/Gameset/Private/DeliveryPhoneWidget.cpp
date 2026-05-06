@@ -175,43 +175,35 @@ void UDeliveryPhoneWidget::BuildDeliveryAppWidget()
 
 void UDeliveryPhoneWidget::HandleNewOrderPending(const FDeliveryOrder& Order)
 {
-	UE_LOG(LogTemp, Warning, TEXT("★★★ HandleNewOrderPending 호출됨! NotifBannerOverlay=%s ★★★"),
-		NotifBannerOverlay ? TEXT("존재") : TEXT("NULL"));
-
-	// 1. 알림 효과음 재생 (BP 클래스 디폴트에서 Sound 할당 필요)
+	// 1. 소리만 즉시 재생 — 시각 알림은 폰을 열 때까지 보류
 	if (NotificationSound)
 	{
 		UGameplayStatics::PlaySound2D(GetWorld(), NotificationSound);
 	}
 
-	// 2. 알림 배너 오버레이 표시 (폰 상태와 무관하게 항상 뜸)
+	// 2. 미확인 알림 플래그 + 내용 저장
+	bHasPendingNotification = true;
+	PendingNotificationDesc = Order.ItemDescription;
+
+	// 3. BP 이벤트 / 주문 목록 갱신
+	OnNewOrderNotification(Order);
+	RefreshOrderList();
+}
+
+// ── NotifyPhoneOpened ─────────────────────────────────────────────────────────
+// WBP_Phone BP에서 폰 들기 애니메이션이 끝난 시점에 호출.
+// 미확인 배달 알림이 있으면 그 배너(NotifBannerOverlay)를 폰 근처에 표시한다.
+
+void UDeliveryPhoneWidget::NotifyPhoneOpened()
+{
+	if (!bHasPendingNotification) return;
+
+	// 폰 열렸을 때 배너 표시 (소리 없이 시각만)
 	if (NotifBannerOverlay)
 	{
 		UTexture2D* Icon = NotificationIconTexture ? NotificationIconTexture : DeliveryAppIconTexture;
-		NotifBannerOverlay->ShowBanner(Order.ItemDescription, Icon, AppPrimaryColor);
+		NotifBannerOverlay->ShowBanner(PendingNotificationDesc, Icon, AppPrimaryColor);
 	}
-
-	// 3. 폰 잠금화면 알림 배지 표시
-	//    BP에서 "PhoneNotifBadge" / "PhoneNotifText" 이름의 위젯이 있으면 자동 표시
-	if (PhoneNotifBadge)
-	{
-		// 주황색 배경으로 배지 강조
-		PhoneNotifBadge->SetBrushColor(AppPrimaryColor);
-		PhoneNotifBadge->SetVisibility(ESlateVisibility::Visible);
-	}
-	if (PhoneNotifText)
-	{
-		FString NotifStr = FString::Printf(TEXT("새 배달 요청  %s"),
-			*Order.ItemDescription.ToString());
-		PhoneNotifText->SetText(FText::FromString(NotifStr));
-		PhoneNotifText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-	}
-
-	// 4. BP 이벤트 트리거 (추가 애니메이션/뱃지 구현 가능)
-	OnNewOrderNotification(Order);
-
-	// 5. 주문 목록 UI 갱신
-	RefreshOrderList();
 }
 
 // ── 알림 배너 클릭 → 배달 앱 열기 ──────────────────────────────────────────
@@ -239,7 +231,8 @@ void UDeliveryPhoneWidget::OpenDeliveryApp()
 
 	DeliveryAppWidgetInstance->SetVisibility(ESlateVisibility::Visible);
 
-	// 앱을 열었으므로 잠금화면 알림 배지 숨김
+	// 앱을 열었으므로 알림 확인 처리 → 배지 숨김 + 플래그 초기화
+	bHasPendingNotification = false;
 	if (PhoneNotifBadge)
 	{
 		PhoneNotifBadge->SetVisibility(ESlateVisibility::Collapsed);

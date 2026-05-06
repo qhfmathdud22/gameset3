@@ -120,6 +120,14 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Phone")
 	void ResetToLockScreen();
 
+	/**
+	 * 폰이 열릴 때 BP에서 호출하세요.
+	 * 미확인 배달 알림이 있으면 PhoneNotifBadge를 표시합니다.
+	 * (WBP_Phone의 "폰 들기" 애니메이션 끝 이벤트에 연결)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Phone")
+	void NotifyPhoneOpened();
+
 	// ────────────────────────────────────────────────────────────────────
 	// 배달 앱 관련 함수 (BlueprintImplementableEvent: BP에서 실제 UI 구현)
 	// ────────────────────────────────────────────────────────────────────
@@ -194,6 +202,12 @@ private:
 	/** DeliveryManagerComponent 캐싱 */
 	UPROPERTY()
 	class UDeliveryManagerComponent* CachedDeliveryManager = nullptr;
+
+	/** 아직 확인하지 않은 배달 알림이 있는지 여부 */
+	bool bHasPendingNotification = false;
+
+	/** 미확인 알림의 주문 내용 (폰 열 때 배지에 표시) */
+	FText PendingNotificationDesc;
 
 	// ────────────────────────────────────────────────────────────────────
 	// 독립 오버레이 위젯 (뷰포트에 직접 AddToViewport)
