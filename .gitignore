@@ -1,0 +1,29 @@
+# Unreal Engine generated directories
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Large asset files (use Git LFS or Perforce for these)
+Content/
+
+# VS files
+.vs/
+*.sln
+*.suo
+*.user
+UpgradeLog*.htm
+Backup*/
+
+# Compiled source
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.dll
+*.exe
+
+# OS
+.DS_Store
+Thumbs.db
