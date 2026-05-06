@@ -9,6 +9,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Border.h"
+#include "Components/TextBlock.h"
+#include "Styling/SlateTypes.h"
 
 // ── DeliveryComponent 참조 ────────────────────────────────────────────────────
 // 게임 시간 표시에 사용 (플레이어 Pawn에 붙어있는 컴포넌트)
@@ -188,10 +191,26 @@ void UDeliveryPhoneWidget::HandleNewOrderPending(const FDeliveryOrder& Order)
 		NotifBannerOverlay->ShowBanner(Order.ItemDescription, Icon, AppPrimaryColor);
 	}
 
-	// 3. BP 이벤트 트리거 (추가 애니메이션/뱃지 구현 가능)
+	// 3. 폰 잠금화면 알림 배지 표시
+	//    BP에서 "PhoneNotifBadge" / "PhoneNotifText" 이름의 위젯이 있으면 자동 표시
+	if (PhoneNotifBadge)
+	{
+		// 주황색 배경으로 배지 강조
+		PhoneNotifBadge->SetBrushColor(AppPrimaryColor);
+		PhoneNotifBadge->SetVisibility(ESlateVisibility::Visible);
+	}
+	if (PhoneNotifText)
+	{
+		FString NotifStr = FString::Printf(TEXT("새 배달 요청  %s"),
+			*Order.ItemDescription.ToString());
+		PhoneNotifText->SetText(FText::FromString(NotifStr));
+		PhoneNotifText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	}
+
+	// 4. BP 이벤트 트리거 (추가 애니메이션/뱃지 구현 가능)
 	OnNewOrderNotification(Order);
 
-	// 4. 주문 목록 UI 갱신
+	// 5. 주문 목록 UI 갱신
 	RefreshOrderList();
 }
 
@@ -219,6 +238,12 @@ void UDeliveryPhoneWidget::OpenDeliveryApp()
 	}
 
 	DeliveryAppWidgetInstance->SetVisibility(ESlateVisibility::Visible);
+
+	// 앱을 열었으므로 잠금화면 알림 배지 숨김
+	if (PhoneNotifBadge)
+	{
+		PhoneNotifBadge->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 void UDeliveryPhoneWidget::CloseDeliveryApp()

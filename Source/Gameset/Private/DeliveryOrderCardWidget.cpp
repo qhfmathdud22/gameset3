@@ -46,252 +46,237 @@ void UDeliveryOrderCardWidget::NativeConstruct()
 
 // ────────────────────────────────────────────────────────────────────────────────
 // BuildLayout
-// WidgetTree->ConstructWidget<T>() 패턴으로 전체 카드 UI를 생성한다.
+// 폰 화면 너비에 최적화된 카드 UI를 구성한다.
 //
 // 레이아웃 구조:
-//   [Border - 흰색 배경, 패딩 12]
+//   [Border - 흰색 배경, 패딩 10]
 //     └─ [VerticalBox]
-//          ├─ [HorizontalBox] 헤더 (아이콘 | 이름+설명 | 보상)
-//          ├─ [HorizontalBox] 거리 + 남은 시간
-//          └─ [HorizontalBox] 거절 버튼 + 수락 버튼
+//          ├─ [HorizontalBox] 아이콘(32) | 음식점 이름+설명(Fill)
+//          ├─ [Border - 주황색] 보상 금액 (전체 너비, 우측 정렬)
+//          ├─ [HorizontalBox] 거리 | 남은 시간
+//          ├─ [Border - 구분선]
+//          └─ [HorizontalBox] 거절 버튼 | 수락 버튼
 // ────────────────────────────────────────────────────────────────────────────────
 void UDeliveryOrderCardWidget::BuildLayout()
 {
-	// WidgetTree가 없으면 빌드 불가 (방어 코드)
-	if (!WidgetTree)
-	{
-		return;
-	}
+	if (!WidgetTree) return;
 
-	// ── 루트: 흰색 Border (카드 배경) ────────────────────────────────────
+	// ── 루트: 흰색 Border (카드 배경, 둥근 느낌의 패딩) ─────────────────
 	UBorder* RootBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RootBorder"));
 	RootBorder->SetBrushColor(FLinearColor::White);
-	RootBorder->SetPadding(FMargin(12.f));
-
-	// WidgetTree의 루트 위젯으로 등록
+	RootBorder->SetPadding(FMargin(10.f, 10.f, 10.f, 10.f));
 	WidgetTree->RootWidget = RootBorder;
 
-	// ── 전체 세로 박스 ────────────────────────────────────────────────────
 	UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
 	RootBorder->SetContent(MainVBox);
 
 
 	// ════════════════════════════════════════════════════════════════════
-	// 섹션 1: 헤더 (아이콘 | 음식점 이름+물품 설명 | 보상 금액)
+	// 섹션 1: 아이콘 + 음식점 이름 + 물품 설명 (한 행)
 	// ════════════════════════════════════════════════════════════════════
-	UHorizontalBox* HeaderHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HeaderHBox"));
+	UHorizontalBox* NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("NameRow"));
 	{
-		UVerticalBoxSlot* HeaderSlot = MainVBox->AddChildToVerticalBox(HeaderHBox);
-		HeaderSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
-		HeaderSlot->SetHorizontalAlignment(HAlign_Fill);
+		UVerticalBoxSlot* S = MainVBox->AddChildToVerticalBox(NameRow);
+		S->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+		S->SetHorizontalAlignment(HAlign_Fill);
 	}
 
-	// ── 1-1: 음식점 아이콘 (40x40 SizeBox로 고정 크기) ──────────────────
+	// 아이콘 (32x32)
 	{
-		USizeBox* IconSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("IconSizeBox"));
-		IconSizeBox->SetWidthOverride(40.f);
-		IconSizeBox->SetHeightOverride(40.f);
+		USizeBox* IconBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("IconBox"));
+		IconBox->SetWidthOverride(32.f);
+		IconBox->SetHeightOverride(32.f);
 
 		RestaurantImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("RestaurantImage"));
-		// 텍스처가 있으면 표시, 없으면 투명 처리
-		if (RestaurantIcon)
-		{
-			RestaurantImage->SetBrushFromTexture(RestaurantIcon, true);
-		}
-		else
-		{
-			RestaurantImage->SetColorAndOpacity(FLinearColor::Transparent);
-		}
-		IconSizeBox->SetContent(RestaurantImage);
+		if (RestaurantIcon) RestaurantImage->SetBrushFromTexture(RestaurantIcon, true);
+		else                RestaurantImage->SetColorAndOpacity(FLinearColor::Transparent);
+		IconBox->SetContent(RestaurantImage);
 
-		UHorizontalBoxSlot* IconSlot = HeaderHBox->AddChildToHorizontalBox(IconSizeBox);
-		IconSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
-		IconSlot->SetVerticalAlignment(VAlign_Center);
-		IconSlot->SetHorizontalAlignment(HAlign_Left);
-		IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		UHorizontalBoxSlot* IS = NameRow->AddChildToHorizontalBox(IconBox);
+		IS->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+		IS->SetVerticalAlignment(VAlign_Center);
+		IS->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 	}
 
-	// ── 1-2: 음식점 이름 + 물품 설명 (세로로 쌓임) ──────────────────────
+	// 음식점 이름 + 물품 설명 (Fill, AutoWrap)
 	{
 		UVerticalBox* InfoVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("InfoVBox"));
 
-		// 음식점 이름 텍스트
 		RestaurantNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RestaurantNameText"));
 		RestaurantNameText->SetText(FText::FromString(TEXT("음식점 이름")));
 		RestaurantNameText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+		RestaurantNameText->SetAutoWrapText(true);   // ← 이름이 길어도 줄바꿈
 		{
-			FSlateFontInfo FontInfo = RestaurantNameText->GetFont();
-			FontInfo.Size = 18;
-			FontInfo.TypefaceFontName = FName("Bold");
-			RestaurantNameText->SetFont(FontInfo);
+			FSlateFontInfo F = RestaurantNameText->GetFont();
+			F.Size = 14;
+			F.TypefaceFontName = FName("Bold");
+			RestaurantNameText->SetFont(F);
 		}
 		{
-			UVerticalBoxSlot* NameSlot = InfoVBox->AddChildToVerticalBox(RestaurantNameText);
-			NameSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 2.f));
+			UVerticalBoxSlot* S = InfoVBox->AddChildToVerticalBox(RestaurantNameText);
+			S->SetPadding(FMargin(0.f, 0.f, 0.f, 2.f));
 		}
 
-		// 물품 설명 텍스트 (회색, 작은 크기)
 		ItemDescText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ItemDescText"));
 		ItemDescText->SetText(FText::FromString(TEXT("물품 설명")));
 		ItemDescText->SetColorAndOpacity(FSlateColor(GrayColor()));
+		ItemDescText->SetAutoWrapText(true);         // ← 설명도 줄바꿈
 		{
-			FSlateFontInfo FontInfo = ItemDescText->GetFont();
-			FontInfo.Size = 13;
-			ItemDescText->SetFont(FontInfo);
+			FSlateFontInfo F = ItemDescText->GetFont();
+			F.Size = 11;
+			ItemDescText->SetFont(F);
 		}
 		InfoVBox->AddChildToVerticalBox(ItemDescText);
 
-		// Fill로 남은 공간 차지
-		UHorizontalBoxSlot* InfoSlot = HeaderHBox->AddChildToHorizontalBox(InfoVBox);
-		InfoSlot->SetVerticalAlignment(VAlign_Center);
-		InfoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	}
-
-	// ── 1-3: 보상 금액 (우측 정렬, 주황색 Bold) ──────────────────────────
-	{
-		UVerticalBox* RewardVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RewardVBox"));
-
-		RewardText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RewardText"));
-		RewardText->SetText(FText::FromString(TEXT("₩0")));
-		RewardText->SetColorAndOpacity(FSlateColor(OrangeColor()));
-		RewardText->SetJustification(ETextJustify::Right);
-		{
-			FSlateFontInfo FontInfo = RewardText->GetFont();
-			FontInfo.Size = 20;
-			FontInfo.TypefaceFontName = FName("Bold");
-			RewardText->SetFont(FontInfo);
-		}
-		{
-			UVerticalBoxSlot* RewardSlot = RewardVBox->AddChildToVerticalBox(RewardText);
-			RewardSlot->SetHorizontalAlignment(HAlign_Right);
-		}
-
-		UHorizontalBoxSlot* RewardBoxSlot = HeaderHBox->AddChildToHorizontalBox(RewardVBox);
-		RewardBoxSlot->SetVerticalAlignment(VAlign_Center);
-		RewardBoxSlot->SetHorizontalAlignment(HAlign_Right);
-		RewardBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		UHorizontalBoxSlot* IS = NameRow->AddChildToHorizontalBox(InfoVBox);
+		IS->SetVerticalAlignment(VAlign_Center);
+		IS->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	}
 
 
 	// ════════════════════════════════════════════════════════════════════
-	// 섹션 2: 거리 + 남은 수락 시간
+	// 섹션 2: 보상 금액 (주황색 배경 배지, 전체 너비)
+	// ════════════════════════════════════════════════════════════════════
+	UBorder* RewardBadge = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RewardBadge"));
+	RewardBadge->SetBrushColor(FLinearColor(1.f, 0.95f, 0.88f, 1.f));  // 연주황 배경
+	RewardBadge->SetPadding(FMargin(8.f, 5.f));
+	{
+		UVerticalBoxSlot* S = MainVBox->AddChildToVerticalBox(RewardBadge);
+		S->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+		S->SetHorizontalAlignment(HAlign_Fill);
+	}
+
+	RewardText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RewardText"));
+	RewardText->SetText(FText::FromString(TEXT("₩0")));
+	RewardText->SetColorAndOpacity(FSlateColor(OrangeColor()));
+	RewardText->SetJustification(ETextJustify::Right);
+	{
+		FSlateFontInfo F = RewardText->GetFont();
+		F.Size = 16;
+		F.TypefaceFontName = FName("Bold");
+		RewardText->SetFont(F);
+	}
+	RewardBadge->SetContent(RewardText);
+
+
+	// ════════════════════════════════════════════════════════════════════
+	// 섹션 3: 거리 + 남은 수락 시간 (한 행)
 	// ════════════════════════════════════════════════════════════════════
 	UHorizontalBox* InfoHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("InfoHBox"));
 	{
-		UVerticalBoxSlot* InfoRowSlot = MainVBox->AddChildToVerticalBox(InfoHBox);
-		InfoRowSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
-		InfoRowSlot->SetHorizontalAlignment(HAlign_Fill);
+		UVerticalBoxSlot* S = MainVBox->AddChildToVerticalBox(InfoHBox);
+		S->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+		S->SetHorizontalAlignment(HAlign_Fill);
 	}
 
-	// 거리 텍스트 (회색, 12pt)
+	// 거리 (회색, 11pt)
 	DistanceText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DistanceText"));
-	DistanceText->SetText(FText::FromString(TEXT("📍 0.0km")));
+	DistanceText->SetText(FText::FromString(TEXT("0.0km")));
 	DistanceText->SetColorAndOpacity(FSlateColor(GrayColor()));
 	{
-		FSlateFontInfo FontInfo = DistanceText->GetFont();
-		FontInfo.Size = 12;
-		DistanceText->SetFont(FontInfo);
+		FSlateFontInfo F = DistanceText->GetFont();
+		F.Size = 11;
+		DistanceText->SetFont(F);
 	}
 	{
-		UHorizontalBoxSlot* DistSlot = InfoHBox->AddChildToHorizontalBox(DistanceText);
-		DistSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		DistSlot->SetVerticalAlignment(VAlign_Center);
+		UHorizontalBoxSlot* S = InfoHBox->AddChildToHorizontalBox(DistanceText);
+		S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		S->SetVerticalAlignment(VAlign_Center);
 	}
 
-	// 남은 시간 텍스트 (빨간색, 12pt, 우측 정렬)
+	// 남은 시간 (빨간색, 11pt, 우측)
 	TimeRemainingText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TimeRemainingText"));
-	TimeRemainingText->SetText(FText::FromString(TEXT("⏱ 30초")));
+	TimeRemainingText->SetText(FText::FromString(TEXT("30초")));
 	TimeRemainingText->SetColorAndOpacity(FSlateColor(RedColor()));
 	TimeRemainingText->SetJustification(ETextJustify::Right);
 	{
-		FSlateFontInfo FontInfo = TimeRemainingText->GetFont();
-		FontInfo.Size = 12;
-		TimeRemainingText->SetFont(FontInfo);
+		FSlateFontInfo F = TimeRemainingText->GetFont();
+		F.Size = 11;
+		TimeRemainingText->SetFont(F);
 	}
 	{
-		UHorizontalBoxSlot* TimeSlot = InfoHBox->AddChildToHorizontalBox(TimeRemainingText);
-		TimeSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-		TimeSlot->SetVerticalAlignment(VAlign_Center);
+		UHorizontalBoxSlot* S = InfoHBox->AddChildToHorizontalBox(TimeRemainingText);
+		S->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		S->SetVerticalAlignment(VAlign_Center);
 	}
 
 
 	// ════════════════════════════════════════════════════════════════════
-	// 섹션 3: 버튼 행 (거절 | 수락하기)
+	// 섹션 4: 구분선
+	// ════════════════════════════════════════════════════════════════════
+	{
+		UBorder* Divider = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Divider"));
+		Divider->SetBrushColor(FLinearColor(0.85f, 0.85f, 0.85f, 1.f));
+		Divider->SetPadding(FMargin(0.f));
+		USizeBox* DivSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("DivSizeBox"));
+		DivSizeBox->SetHeightOverride(1.f);
+		DivSizeBox->SetContent(Divider);
+
+		UVerticalBoxSlot* S = MainVBox->AddChildToVerticalBox(DivSizeBox);
+		S->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+		S->SetHorizontalAlignment(HAlign_Fill);
+	}
+
+
+	// ════════════════════════════════════════════════════════════════════
+	// 섹션 5: 버튼 행 (거절 | 수락하기)
 	// ════════════════════════════════════════════════════════════════════
 	UHorizontalBox* BtnHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BtnHBox"));
 	{
-		UVerticalBoxSlot* BtnRowSlot = MainVBox->AddChildToVerticalBox(BtnHBox);
-		BtnRowSlot->SetHorizontalAlignment(HAlign_Fill);
+		UVerticalBoxSlot* S = MainVBox->AddChildToVerticalBox(BtnHBox);
+		S->SetHorizontalAlignment(HAlign_Fill);
 	}
 
-	// ── 거절 버튼 (회색 배경, 흰색 글씨) ────────────────────────────────
+	// 거절 버튼
 	{
 		RejectBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RejectBtn"));
+		FButtonStyle Style = RejectBtn->GetStyle();
+		Style.Normal.TintColor  = FSlateColor(DarkGrayColor());
+		Style.Hovered.TintColor = FSlateColor(FLinearColor(0.45f, 0.45f, 0.45f, 1.f));
+		Style.Pressed.TintColor = FSlateColor(FLinearColor(0.25f, 0.25f, 0.25f, 1.f));
+		Style.Normal.DrawAs = Style.Hovered.DrawAs = Style.Pressed.DrawAs = ESlateBrushDrawType::RoundedBox;
+		RejectBtn->SetStyle(Style);
 
-		// 버튼 스타일: 회색 배경
-		FButtonStyle RejectStyle = RejectBtn->GetStyle();
-		RejectStyle.Normal.TintColor      = FSlateColor(DarkGrayColor());
-		RejectStyle.Hovered.TintColor     = FSlateColor(FLinearColor(0.45f, 0.45f, 0.45f, 1.f));
-		RejectStyle.Pressed.TintColor     = FSlateColor(FLinearColor(0.25f, 0.25f, 0.25f, 1.f));
-		RejectStyle.Normal.DrawAs         = ESlateBrushDrawType::RoundedBox;
-		RejectStyle.Hovered.DrawAs        = ESlateBrushDrawType::RoundedBox;
-		RejectStyle.Pressed.DrawAs        = ESlateBrushDrawType::RoundedBox;
-		RejectBtn->SetStyle(RejectStyle);
-
-		// 거절 버튼 텍스트
-		UTextBlock* RejectLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RejectLabel"));
-		RejectLabel->SetText(FText::FromString(TEXT("거절")));
-		RejectLabel->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RejectLabel"));
+		Label->SetText(FText::FromString(TEXT("거절")));
+		Label->SetColorAndOpacity(FSlateColor(FLinearColor::White));
 		{
-			FSlateFontInfo FontInfo = RejectLabel->GetFont();
-			FontInfo.Size = 14;
-			RejectLabel->SetFont(FontInfo);
+			FSlateFontInfo F = Label->GetFont(); F.Size = 13; Label->SetFont(F);
 		}
-		RejectBtn->SetContent(RejectLabel);
-
-		// 클릭 이벤트 바인딩
+		RejectBtn->SetContent(Label);
 		RejectBtn->OnClicked.AddDynamic(this, &UDeliveryOrderCardWidget::OnRejectClicked);
 
-		// 레이아웃에 추가 (40% 너비)
-		UHorizontalBoxSlot* RejectSlot = BtnHBox->AddChildToHorizontalBox(RejectBtn);
-		RejectSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
-		RejectSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		RejectSlot->SetHorizontalAlignment(HAlign_Fill);
+		UHorizontalBoxSlot* S = BtnHBox->AddChildToHorizontalBox(RejectBtn);
+		S->SetPadding(FMargin(0.f, 0.f, 5.f, 0.f));
+		S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		S->SetHorizontalAlignment(HAlign_Fill);
 	}
 
-	// ── 수락 버튼 (주황색 배경, 흰색 Bold 글씨) ──────────────────────────
+	// 수락 버튼
 	{
 		AcceptBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("AcceptBtn"));
+		FButtonStyle Style = AcceptBtn->GetStyle();
+		Style.Normal.TintColor  = FSlateColor(OrangeColor());
+		Style.Hovered.TintColor = FSlateColor(FLinearColor(1.f, 0.55f, 0.35f, 1.f));
+		Style.Pressed.TintColor = FSlateColor(FLinearColor(0.85f, 0.30f, 0.10f, 1.f));
+		Style.Normal.DrawAs = Style.Hovered.DrawAs = Style.Pressed.DrawAs = ESlateBrushDrawType::RoundedBox;
+		AcceptBtn->SetStyle(Style);
 
-		// 버튼 스타일: 주황색 배경
-		FButtonStyle AcceptStyle = AcceptBtn->GetStyle();
-		AcceptStyle.Normal.TintColor      = FSlateColor(OrangeColor());
-		AcceptStyle.Hovered.TintColor     = FSlateColor(FLinearColor(1.f, 0.55f, 0.35f, 1.f));
-		AcceptStyle.Pressed.TintColor     = FSlateColor(FLinearColor(0.85f, 0.30f, 0.10f, 1.f));
-		AcceptStyle.Normal.DrawAs         = ESlateBrushDrawType::RoundedBox;
-		AcceptStyle.Hovered.DrawAs        = ESlateBrushDrawType::RoundedBox;
-		AcceptStyle.Pressed.DrawAs        = ESlateBrushDrawType::RoundedBox;
-		AcceptBtn->SetStyle(AcceptStyle);
-
-		// 수락 버튼 텍스트
-		UTextBlock* AcceptLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AcceptLabel"));
-		AcceptLabel->SetText(FText::FromString(TEXT("수락하기")));
-		AcceptLabel->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AcceptLabel"));
+		Label->SetText(FText::FromString(TEXT("수락하기")));
+		Label->SetColorAndOpacity(FSlateColor(FLinearColor::White));
 		{
-			FSlateFontInfo FontInfo = AcceptLabel->GetFont();
-			FontInfo.Size = 14;
-			FontInfo.TypefaceFontName = FName("Bold");
-			AcceptLabel->SetFont(FontInfo);
+			FSlateFontInfo F = Label->GetFont();
+			F.Size = 13;
+			F.TypefaceFontName = FName("Bold");
+			Label->SetFont(F);
 		}
-		AcceptBtn->SetContent(AcceptLabel);
-
-		// 클릭 이벤트 바인딩
+		AcceptBtn->SetContent(Label);
 		AcceptBtn->OnClicked.AddDynamic(this, &UDeliveryOrderCardWidget::OnAcceptClicked);
 
-		// 레이아웃에 추가 (나머지 너비 채움)
-		UHorizontalBoxSlot* AcceptSlot = BtnHBox->AddChildToHorizontalBox(AcceptBtn);
-		AcceptSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		AcceptSlot->SetHorizontalAlignment(HAlign_Fill);
+		UHorizontalBoxSlot* S = BtnHBox->AddChildToHorizontalBox(AcceptBtn);
+		S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		S->SetHorizontalAlignment(HAlign_Fill);
 	}
 }
 
@@ -328,17 +313,24 @@ void UDeliveryOrderCardWidget::SetOrderData(const FDeliveryOrder& Order)
 	// 거리 반영 (미터 → 킬로미터 변환, 소수점 1자리)
 	if (DistanceText)
 	{
-		DistanceText->SetText(
-			FText::FromString(FString::Printf(TEXT("📍 %.1fkm"), Order.DistanceMeters / 1000.f))
-		);
+		if (Order.DistanceMeters >= 1000.f)
+			DistanceText->SetText(FText::FromString(
+				FString::Printf(TEXT("%.1fkm"), Order.DistanceMeters / 1000.f)));
+		else
+			DistanceText->SetText(FText::FromString(
+				FString::Printf(TEXT("%.0fm"), Order.DistanceMeters)));
 	}
 
-	// 남은 수락 시간 반영 (초 단위 정수)
+	// 남은 수락 시간 반영
 	if (TimeRemainingText)
 	{
-		TimeRemainingText->SetText(
-			FText::FromString(FString::Printf(TEXT("⏱ %.0f초"), Order.PendingTimeRemaining))
-		);
+		const int32 Sec = FMath::CeilToInt(Order.PendingTimeRemaining);
+		if (Sec >= 60)
+			TimeRemainingText->SetText(FText::FromString(
+				FString::Printf(TEXT("%d분 %d초"), Sec / 60, Sec % 60)));
+		else
+			TimeRemainingText->SetText(FText::FromString(
+				FString::Printf(TEXT("%d초"), Sec)));
 	}
 
 	// 아이콘 텍스처가 이미 설정된 경우 이미지 갱신

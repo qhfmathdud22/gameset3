@@ -9,6 +9,8 @@
 class UDeliveryAppWidget;
 class UDeliveryNotifBannerWidget;
 class UCanvasPanel;
+class UBorder;
+class UTextBlock;
 
 /**
  * UDeliveryPhoneWidget
@@ -86,6 +88,25 @@ public:
 	 */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Phone")
 	UCanvasPanel* PhoneAppContainer = nullptr;
+
+	// ────────────────────────────────────────────────────────────────────
+	// 잠금화면 알림 배지 (BP에서 이름을 정확히 맞춰야 자동 연결)
+	// ────────────────────────────────────────────────────────────────────
+
+	/**
+	 * 잠금화면 시계 아래에 배치할 알림 배지 컨테이너.
+	 * BP 디자이너에서 Border 위젯 이름을 "PhoneNotifBadge" 로 설정하면
+	 * 새 배달 주문이 왔을 때 자동으로 표시/숨김 처리됩니다.
+	 */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Phone|Notification")
+	UBorder* PhoneNotifBadge = nullptr;
+
+	/**
+	 * 알림 배지 안의 텍스트 위젯.
+	 * BP 디자이너에서 TextBlock 이름을 "PhoneNotifText" 로 설정하세요.
+	 */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Phone|Notification")
+	UTextBlock* PhoneNotifText = nullptr;
 
 	/**
 	 * 배달 앱 위젯 클래스.
